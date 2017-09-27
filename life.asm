@@ -15,7 +15,7 @@
 %macro print 2
 	mov eax, sys_write
 	mov edi, 1 	; stdout
-	mov rsi, %1
+	mov esi, %1
 	mov edx, %2
 	syscall
 %endmacro
@@ -53,13 +53,13 @@ _start:
 
 	print clear, clear_length
 	call first_generation
-	mov r9, cells1
-	mov r8, cells2
+	mov r9d, cells1
+	mov r8d, cells2
 	.generate_cells:
-		xchg r8, r9		; exchange roles of current and next generation cell containers		
-		print r8, array_length	; print current generation
+		xchg r8d, r9d		; exchange roles of current and next generation cell containers		
+		print r8d, array_length	; print current generation
 		mov eax, sys_nanosleep
-		mov rdi, timespec
+		mov edi, timespec
 		xor esi, esi		; ignore remaining time in case of call interruption
 		syscall			; sleep for tv_sec seconds + tv_nsec nanoseconds
 		print clear, clear_length		
@@ -75,49 +75,49 @@ next_generation:
 		je .next_cell	; do not count live neighbours if new_line
 		xor eax, eax 	; live neighbours
 		.lower_index_neighbours:
-			mov rdx, rbx 			; copy of array index counter, will point to neighbour positions
-			dec rdx				; move to middle left neighbour
+			mov edx, ebx 			; copy of array index counter, will point to neighbour positions
+			dec edx				; move to middle left neighbour
 			js .higher_index_neighbours	; < 0, jump to neighbours with higher indexes
 			mov cl, [r8 + rdx]
 			and cl, 1			; 1 if live, 0 if dead or new_line
 			add al, cl
-			sub rdx, column_cells - 1 	; move to top right neighbour
+			sub edx, column_cells - 1 	; move to top right neighbour
 			js .higher_index_neighbours	; < 0, jump to neighbours with higher indexes
 			mov cl, [r8 + rdx]
 			and cl, 1			; 1 if live, 0 if dead or new_line
 			add al, cl
-			dec rdx				; move to top middle neighbour
+			dec edx				; move to top middle neighbour
 			js .higher_index_neighbours	; < 0, jump to neighbours with higher indexes
 			mov cl, [r8 + rdx]
 			and cl, 1			; 1 if live, 0 if dead or new_line
 			add al, cl
-			dec rdx				; move to top left neighbour
+			dec edx				; move to top left neighbour
 			js .higher_index_neighbours 	; < 0, jump to neighbours with higher indexes		
 			mov cl, [r8 + rdx]
 			and cl, 1			; 1 if live, 0 if dead or new_line
 			add al, cl
 		.higher_index_neighbours:
-			mov rdx, rbx			; reset neighbour index
-			inc rdx				; move to middle right neighbour
-			cmp rdx, array_length - 1
+			mov edx, ebx			; reset neighbour index
+			inc edx				; move to middle right neighbour
+			cmp edx, array_length - 1
 			jge .assign_cell		; out of bounds, no more neighbours to consider
 			mov cl, [r8 + rdx]
 			and cl, 1			; 1 if live, 0 if dead or new_line
 			add al, cl
-			add rdx, column_cells - 1	; move to bottom left neighbour
-			cmp rdx, array_length - 1
+			add edx, column_cells - 1	; move to bottom left neighbour
+			cmp edx, array_length - 1
 			jge .assign_cell		; out of bounds, no more neighbours to consider
 			mov cl, [r8 + rdx]
 			and cl, 1			; 1 if live, 0 if dead or new_line
 			add al, cl
-			inc rdx				; move to bottom middle neighbour
-			cmp rdx, array_length - 1
+			inc edx				; move to bottom middle neighbour
+			cmp edx, array_length - 1
 			jge .assign_cell		; out of bounds, no more neighbours to consider
 			mov cl, [r8 + rdx]
 			and cl, 1			; 1 if live, 0 if dead or new_line
 			add al, cl
-			inc rdx				; move to bottom right neighbour
-			cmp rdx, array_length - 1
+			inc edx				; move to bottom right neighbour
+			cmp edx, array_length - 1
 			jge .assign_cell		; out of bounds, no more neighbours to consider
 			mov cl, [r8 + rdx]
 			and cl, 1			; 1 if live, 0 if dead or new_line
@@ -134,8 +134,8 @@ next_generation:
 			mov cl, [r8 + rbx]
 			mov [r9 + rbx], cl
 		.next_cell:
-			inc rbx
-			cmp rbx, array_length		; check whether end of array
+			inc ebx
+			cmp ebx, array_length		; check whether end of array
 			jne .process_cell
 			jmp _start.generate_cells
 
@@ -161,17 +161,17 @@ first_generation:
     		mov al, ah		; get lower byte of random number from higher byte of ax
     		mov ah, dl		; get higher byte of random number from lower byte of dx
 		mov cx, ax		; save random number for next iteration
-		and rax, 1		; test whether even or odd
+		and eax, 1		; test whether even or odd
 		jz .add_dead		; 0 dead, 1 live
 		add rax, live - dead - 1		
 		.add_dead:
 			add rax, dead	; rax is either 0 or live - dead
 		mov [cells1 + rdi], al 	; store ascii code in array		
-		inc rdi			; increment array index
-		cmp rdi, rbx		; check whether index of new_line
+		inc edi			; increment array index
+		cmp edi, ebx		; check whether index of new_line
 		jne .init_next
-		inc rdi			; increment array index again to preserve new_line
-		add rbx, column_cells + 1 ; update index of next expected new_line
+		inc edi			; increment array index again to preserve new_line
+		add ebx, column_cells + 1 ; update index of next expected new_line
 		.init_next:			
 			cmp rdi, array_length	; check whether end of array
 			jne .init_cell

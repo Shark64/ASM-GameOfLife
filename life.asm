@@ -146,34 +146,36 @@ first_generation:
 	mov eax, sys_time
         xor edi, edi 		; time stored in rax, rdi later used as array index counter 
         syscall
-	mov r8w, ax 		; r8w stores seed, must be odd
-	and ax, 1		; 1 if odd and 0 if even
-	dec ax			; map to 0 if odd and - 1 if even
-	sub r8w, ax		; make seed odd
-	xor cx, cx 		; rcx stores random number	
-	xor r9w, r9w 		; r9w stores Weyl sequence	
-	mov rbx, column_cells	; rbx stores index of next new_line
+	mov r8d, eax 		; r8w stores seed, must be odd
+	and eax, 1		; 1 if odd and 0 if even
+	sub eax, 1		; map to 0 if odd and - 1 if even
+	sub r8d, eax		; make seed odd
+	xor ecx, ecx 		; rcx stores random number	
+	xor r9d, r9d 		; r9w stores Weyl sequence	
+	mov ebx, column_cells	; rbx stores index of next new_line
 	.init_cell:		
-		mov ax, cx
-		mul cx 			; square random number
-		add r9w, r8w 		; calculate next iteration of Weyl sequence
-		add ax, r9w 		; add Weyl sequence
-    		mov al, ah		; get lower byte of random number from higher byte of ax
-    		mov ah, dl		; get higher byte of random number from lower byte of dx
-		mov cx, ax		; save random number for next iteration
+		mov eax, ecx
+		mul ecx 			; square random number
+		add r9d, r8d 		; calculate next iteration of Weyl sequence
+		add eax, r9d		; add Weyl sequence
+    		movzx ecx, ah		; get lower byte of random number from higher byte of ax
+    		movzx eax, dl		; get higher byte of random number from lower byte of dx
+		shl eax, 8
+		or  eax, ecx
+		mov ecx, eax		; save random number for next iteration
 		and eax, 1		; test whether even or odd
 		jz .add_dead		; 0 dead, 1 live
-		add rax, live - dead - 1		
+		add eax, live - dead - 1		
 		.add_dead:
-			add rax, dead	; rax is either 0 or live - dead
+		add eax, dead	; rax is either 0 or live - dead
 		mov [cells1 + rdi], al 	; store ascii code in array		
-		inc edi			; increment array index
+		add edi, 1		; increment array index
 		cmp edi, ebx		; check whether index of new_line
 		jne .init_next
-		inc edi			; increment array index again to preserve new_line
+		add edi, 1		; increment array index again to preserve new_line
 		add ebx, column_cells + 1 ; update index of next expected new_line
 		.init_next:			
-			cmp rdi, array_length	; check whether end of array
+			cmp edi, array_length	; check whether end of array
 			jne .init_cell
 			ret
 

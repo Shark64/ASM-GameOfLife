@@ -14,7 +14,7 @@
 
 %macro print 2
 	mov eax, sys_write
-	mov edi, 1 	; stdout
+	mov edi, eax 	; stdout=sys_write=1
 	mov esi, %1
 	mov edx, %2
 	syscall
@@ -63,7 +63,6 @@ _start:
 		xor esi, esi		; ignore remaining time in case of call interruption
 		syscall			; sleep for tv_sec seconds + tv_nsec nanoseconds
 		print clear, clear_length		
-		jmp next_generation
 
 
 ; r8: current generation, r9: next generation
@@ -78,50 +77,50 @@ next_generation:
 			mov edx, ebx 			; copy of array index counter, will point to neighbour positions
 			sub edx, 1			; move to middle left neighbour
 			js .higher_index_neighbours	; < 0, jump to neighbours with higher indexes
-			mov cl, [r8 + rdx]
-			and cl, 1			; 1 if live, 0 if dead or new_line
-			add al, cl
+			movzx ecx, byte [r8 + rdx]
+			and ecx, 1			; 1 if live, 0 if dead or new_line
+			add eax, ecx
 			sub edx, column_cells - 1 	; move to top right neighbour
 			js .higher_index_neighbours	; < 0, jump to neighbours with higher indexes
-			mov cl, [r8 + rdx]
-			and cl, 1			; 1 if live, 0 if dead or new_line
-			add al, cl
+			movzx ecx, byte [r8 + rdx]
+			and ecx, 1			; 1 if live, 0 if dead or new_line
+			add eax, ecx
 			sub edx, 1			; move to top middle neighbour
 			js .higher_index_neighbours	; < 0, jump to neighbours with higher indexes
-			mov cl, [r8 + rdx]
-			and cl, 1			; 1 if live, 0 if dead or new_line
-			add al, cl
+			movzx ecx, byte [r8 + rdx]
+			and ecx, 1			; 1 if live, 0 if dead or new_line
+			add eax, ecx
 			sub edx, 1			; move to top left neighbour
 			js .higher_index_neighbours 	; < 0, jump to neighbours with higher indexes		
-			mov cl, [r8 + rdx]
-			and cl, 1			; 1 if live, 0 if dead or new_line
-			add al, cl
+			movzx ecx, byte [r8 + rdx]
+			and ecx, 1			; 1 if live, 0 if dead or new_line
+			add eax, ecx
 		.higher_index_neighbours:
 			mov edx, ebx			; reset neighbour index
 			add edx, 1			; move to middle right neighbour
 			cmp edx, array_length - 1
 			jge .assign_cell		; out of bounds, no more neighbours to consider
-			mov cl, [r8 + rdx]
-			and cl, 1			; 1 if live, 0 if dead or new_line
-			add al, cl
+			movzx ecx, byte [r8 + rdx]
+			and ecx, 1			; 1 if live, 0 if dead or new_line
+			add eax, ecx
 			add edx, column_cells - 1	; move to bottom left neighbour
 			cmp edx, array_length - 1
 			jge .assign_cell		; out of bounds, no more neighbours to consider
-			mov cl, [r8 + rdx]
-			and cl, 1			; 1 if live, 0 if dead or new_line
-			add al, cl
+			movzx ecx, byte [r8 + rdx]
+			and ecx, 1			; 1 if live, 0 if dead or new_line
+			add eax, ecx
 			add edx, 1			; move to bottom middle neighbour
 			cmp edx, array_length - 1
 			jge .assign_cell		; out of bounds, no more neighbours to consider
-			mov cl, [r8 + rdx]
-			and cl, 1			; 1 if live, 0 if dead or new_line
-			add al, cl
+			movzx ecx, byte [r8 + rdx]
+			and ecx, 1			; 1 if live, 0 if dead or new_line
+			add eax, ecx
 			add edx, 1			; move to bottom right neighbour
 			cmp edx, array_length - 1
 			jge .assign_cell		; out of bounds, no more neighbours to consider
-			mov cl, [r8 + rdx]
-			and cl, 1			; 1 if live, 0 if dead or new_line
-			add al, cl
+			movzx ecx, byte [r8 + rdx]
+			and ecx, 1			; 1 if live, 0 if dead or new_line
+			add eax, ecx
 		.assign_cell:
 			cmp al, 2
 			je .keep_current		; 2 live neigbours, next generation cell same as current 
@@ -131,7 +130,7 @@ next_generation:
 			mov byte [r9 + rbx], live	; 3 live neighbours, live cell
 			jmp .next_cell
 		.keep_current:
-			mov cl, [r8 + rbx]
+			movzx ecx, byte [r8 + rbx]
 			mov [r9 + rbx], cl
 		.next_cell:
 			add ebx, 1

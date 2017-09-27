@@ -76,7 +76,7 @@ next_generation:
 		xor eax, eax 	; live neighbours
 		.lower_index_neighbours:
 			mov edx, ebx 			; copy of array index counter, will point to neighbour positions
-			dec edx				; move to middle left neighbour
+			sub edx, 1			; move to middle left neighbour
 			js .higher_index_neighbours	; < 0, jump to neighbours with higher indexes
 			mov cl, [r8 + rdx]
 			and cl, 1			; 1 if live, 0 if dead or new_line
@@ -86,19 +86,19 @@ next_generation:
 			mov cl, [r8 + rdx]
 			and cl, 1			; 1 if live, 0 if dead or new_line
 			add al, cl
-			dec edx				; move to top middle neighbour
+			sub edx, 1			; move to top middle neighbour
 			js .higher_index_neighbours	; < 0, jump to neighbours with higher indexes
 			mov cl, [r8 + rdx]
 			and cl, 1			; 1 if live, 0 if dead or new_line
 			add al, cl
-			dec edx				; move to top left neighbour
+			sub edx, 1			; move to top left neighbour
 			js .higher_index_neighbours 	; < 0, jump to neighbours with higher indexes		
 			mov cl, [r8 + rdx]
 			and cl, 1			; 1 if live, 0 if dead or new_line
 			add al, cl
 		.higher_index_neighbours:
 			mov edx, ebx			; reset neighbour index
-			inc edx				; move to middle right neighbour
+			add edx, 1			; move to middle right neighbour
 			cmp edx, array_length - 1
 			jge .assign_cell		; out of bounds, no more neighbours to consider
 			mov cl, [r8 + rdx]
@@ -110,13 +110,13 @@ next_generation:
 			mov cl, [r8 + rdx]
 			and cl, 1			; 1 if live, 0 if dead or new_line
 			add al, cl
-			inc edx				; move to bottom middle neighbour
+			add edx, 1			; move to bottom middle neighbour
 			cmp edx, array_length - 1
 			jge .assign_cell		; out of bounds, no more neighbours to consider
 			mov cl, [r8 + rdx]
 			and cl, 1			; 1 if live, 0 if dead or new_line
 			add al, cl
-			inc edx				; move to bottom right neighbour
+			add edx, 1			; move to bottom right neighbour
 			cmp edx, array_length - 1
 			jge .assign_cell		; out of bounds, no more neighbours to consider
 			mov cl, [r8 + rdx]
@@ -134,7 +134,7 @@ next_generation:
 			mov cl, [r8 + rbx]
 			mov [r9 + rbx], cl
 		.next_cell:
-			inc ebx
+			add ebx, 1
 			cmp ebx, array_length		; check whether end of array
 			jne .process_cell
 			jmp _start.generate_cells

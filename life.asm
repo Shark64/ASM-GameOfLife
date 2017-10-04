@@ -11,7 +11,8 @@
 ;				NASM assembler, Linux x86-64				;
 ;											;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
+%use smartalign
+alignmode P6
 %macro print 2
 	mov eax, sys_write
 	mov edi, eax 	; stdout=sys_write=1
@@ -23,11 +24,11 @@
 global _start
 
 section .data
-
+align 64
 	row_cells:	equ 32	; set to any (reasonable) value you wish
-	column_cells: 	equ 128 ; set to any (reasonable) value you wish
+	column_cells: 	equ 64 ; set to any (reasonable) value you wish
 	array_length:	equ row_cells * column_cells + row_cells ; cells are mapped to bytes in the array and a new line char ends each row
-
+align  64
 	cells1: 	times array_length db new_line
 	cells2:		times array_length db new_line
 
@@ -46,13 +47,19 @@ section .data
 	sys_nanosleep:	equ 35
 	sys_time:	equ 201
 
-
 section .text
+align 4096
 
 _start:
 
-	print clear, clear_length
-	call first_generation
+	xor eax, eax
+	lea edx, [rax+clear_length]
+	lea edi, [rax+sys_write]
+	mov esi, clear
+	mov eax, edi
+	syscall
+	jmp first_generation
+	.second_gen:
 	mov r9d, cells1
 	mov r8d, cells2
 	.generate_cells:
@@ -70,11 +77,12 @@ next_generation:
 
 	xor ebx, ebx	; array index counter
 	.process_cell:
-		cmp byte [r8 + rbx], new_line
+		mov eax, new_line
+		cmp  al, byte [r8 + rbx] ;, new_line
 		je .next_cell	; do not count live neighbours if new_line
 		xor eax, eax 	; live neighbours
 		.lower_index_neighbours:
-			mov edx, ebx 			; copy of array index counter, will point to neighbour positions
+			mov edx, ebx			; copy of array index counter, will point to neighbour positions
 			sub edx, 1			; move to middle left neighbour
 			js .higher_index_neighbours	; < 0, jump to neighbours with higher indexes
 			movzx ecx, byte [r8 + rdx]
@@ -118,20 +126,18 @@ next_generation:
 			add edx, 1			; move to bottom right neighbour
 			cmp edx, array_length - 1
 			jge .assign_cell		; out of bounds, no more neighbours to consider
+			mov esi, dead
+			mov edi, live
 			movzx ecx, byte [r8 + rdx]
 			and ecx, 1			; 1 if live, 0 if dead or new_line
 			add eax, ecx
+			cmp eax, 3
+			cmove esi, edi    		; 3 live neighbours, live cell
 		.assign_cell:
-			cmp al, 2
-			je .keep_current		; 2 live neigbours, next generation cell same as current 
-			mov byte [r9 + rbx], dead
-			cmp al, 3
-			jne .next_cell			; neither 2 or 3, dead cell
-			mov byte [r9 + rbx], live	; 3 live neighbours, live cell
-			jmp .next_cell
-		.keep_current:
 			movzx ecx, byte [r8 + rbx]
-			mov [r9 + rbx], cl
+			cmp eax, 2
+			cmovne ecx, esi			; 2 live neighbours, keep current state
+			mov byte [r9+rbx], cl
 		.next_cell:
 			add ebx, 1
 			cmp ebx, array_length		; check whether end of array
@@ -140,6 +146,7 @@ next_generation:
 
 
 ; array cells1 is initialised with pseudorandom cells using a middle-square Weyl sequence RNG
+align 16
 first_generation:
 
 	mov eax, sys_time
@@ -151,9 +158,12 @@ first_generation:
 	sub r8d, eax		; make seed odd
 	xor ecx, ecx 		; rcx stores random number	
 	xor r9d, r9d 		; r9w stores Weyl sequence	
-	mov ebx, column_cells	; rbx stores index of next new_line
+	lea ebx, [rcx+column_cells]	; rbx stores index of next new_line
+	lea esi, [rcx+dead]	; rsi stores dead
+	lea ebp, [rcx+live]	; rbp stores live
 	.init_cell:		
 		mov eax, ecx
+		lea r10d, [rdi+cells1]
 		mul ecx 			; square random number
 		add r9d, r8d 		; calculate next iteration of Weyl sequence
 		add eax, r9d		; add Weyl sequence
@@ -162,19 +172,16 @@ first_generation:
 		shl eax, 8
 		or  eax, ecx
 		mov ecx, eax		; save random number for next iteration
-		and eax, 1		; test whether even or odd
-		jz .add_dead		; 0 dead, 1 live
-		add eax, live - dead - 1		
-		.add_dead:
-		add eax, dead	; rax is either 0 or live - dead
-		mov [cells1 + rdi], al 	; store ascii code in array		
+		mov edx, esi		; edx=dead
+		test eax, 1		; test whether even or odd
+		cmovnz edx, ebp		; if odd -> live
+		mov [r10], dl 	; store ascii code in array		
+		lea eax, [rdi+2]
+		lea edx, [rbx+column_cells+1]
 		add edi, 1		; increment array index
 		cmp edi, ebx		; check whether index of new_line
-		jne .init_next
-		add edi, 1		; increment array index again to preserve new_line
-		add ebx, column_cells + 1 ; update index of next expected new_line
-		.init_next:			
-			cmp edi, array_length	; check whether end of array
-			jne .init_cell
-			ret
-
+		cmove ebx, edx
+		cmove edi, eax
+		cmp edi, array_length	; check whether end of array
+		jne .init_cell
+		jmp _start.second_gen
